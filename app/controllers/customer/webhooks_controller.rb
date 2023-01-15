@@ -29,9 +29,9 @@ class Customer::WebhooksController < ApplicationController
       customer = Customer.find(session.client_reference_id)
       return unless customer # 顧客が存在するかどうか確認
 
-      ApplicationRecord.transaction do # トランザクション処理開始
+      # トランザクション処理開始
+      ApplicationRecord.transaction do
         order = create_order(session) # sessionを元にordersテーブルにデータを挿入
-
         session_with_expand = Stripe::Checkout::Session.retrieve({ id: session.id, expand: ['line_items'] })
         session_with_expand.line_items.data.each do |line_item|
           create_order_details(order, line_item) # 取り出したline_itemをorder_detailsテーブルに登録
@@ -39,6 +39,7 @@ class Customer::WebhooksController < ApplicationController
       end
       # トランザクション処理終了
       customer.cart_items.destroy_all # 顧客のカート内商品を全て削除
+      OrderMailer.complete(email: session.customer_details.email).deliver_later
       redirect_to session.success_url
     end
   end
